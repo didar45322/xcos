@@ -1,100 +1,146 @@
-const moment = require("moment");
+const fs = require("fs-extra");
+const axios = require("axios");
+const path = require("path");
+const { getPrefix } = global.utils;
+const { commands, aliases } = global.GoatBot;
 
 module.exports = {
   config: {
     name: "help",
-    aliases: ["h", "menu", "hp"],
-    version: "2.4",
-    author: " Eren",
+    aliases:["use", "cmdl"],
+    version: "1.18",
+    author: "HaSaN", 
     countDown: 5,
     role: 0,
-    shortDescription: "Show all commands",
-    longDescription: "View full list of bot commands in a paginated and detailed format",
+    shortDescription: {
+      en: "View command usage",
+    },
+    longDescription: {
+      en: "View command usage and list all commands or commands by category",
+    },
     category: "info",
-    guide: "{pn} [command name | page number]"
+    guide: {
+      en: "{pn} / help cmdName\n{pn} -c <categoryName>",
+    },
+    priority: 1,
   },
 
-  onStart: async function ({ api, event, args }) {
-    const prefix = global.GoatBot.config.prefix;
-    const commands = global.GoatBot.commands;
-    const allCommands = Array.from(commands.values());
-    const perPage = 15;
-    const totalPages = Math.ceil(allCommands.length / perPage);
-    let page = 1;
-    let cmdName = null;
+  onStart: async function ({ message, args, event, threadsData, role }) {
+    const { threadID } = event;
+    const threadData = await threadsData.get(threadID);
+    const prefix = getPrefix(threadID);
 
-    // Calculate bot uptime
-    const uptime = process.uptime(); // in seconds
-    const days = Math.floor(uptime / (60 * 60 * 24));
-    const hours = Math.floor((uptime / (60 * 60)) % 24);
-    const minutes = Math.floor((uptime / 60) % 60);
-    const seconds = Math.floor(uptime % 60);
+    if (args.length === 0) {
+      const categories = {};
+      let msg = "";
 
-    const uptimeString = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      msg += `╔══════════════╗\n🔹 𝑪𝑶𝑴𝑴𝑨𝑵𝑫 𝑳𝑰𝑺𝑻 🔹\n╚══════════════╝\n`;
 
-    if (args.length > 0) {
-      const input = args[0].toLowerCase();
-      if (isNaN(input)) {
-        cmdName = input;
+      for (const [name, value] of commands) {
+        if (value.config.role > 1 && role < value.config.role) continue;
+
+        const category = value.config.category || "Uncategorized";
+        categories[category] = categories[category] || { commands: [] };
+        categories[category].commands.push(name);
+      }
+
+      Object.keys(categories).forEach((category) => {
+        if (category !== "info") {
+          msg += `\n╭────────────⭓\n│『 ${category.toUpperCase()} 』`;
+
+          const names = categories[category].commands.sort();
+          names.forEach((item) => {
+            msg += `\n│𖤍 ${item}`;
+          });
+
+          msg += `\n╰────────⭓`;
+        }
+      });
+
+      const totalCommands = commands.size;
+      msg += `\n𝗖𝘂𝗿𝗿𝗲𝗻𝘁𝗹𝘆, 𝘁𝗵𝗲 𝗯𝗼𝘁 𝗵𝗮𝘀 ${totalCommands} 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 𝘁𝗵𝗮𝘁 𝗰𝗮𝗻 𝗯𝗲 𝘂𝘀𝗲𝗱\n`;
+      msg += `\n𝗧𝘆𝗽𝗲 ${prefix}𝗵𝗲𝗹𝗽 𝗰𝗺𝗱𝗡𝗮𝗺𝗲 𝘁𝗼 𝘃𝗶𝗲𝘄 𝘁𝗵𝗲 𝗱𝗲𝘁𝗮𝗶𝗹𝘀 𝗼𝗳 𝘁𝗵𝗮𝘁 𝗰𝗼𝗺𝗺𝗮𝗻𝗱\n`;
+      msg += `\n🫧𝑩𝑶𝑻 𝑵𝑨𝑴𝑬🫧:"🕸️ mal 🕷️`;
+      msg += `\n𓀬 𝐁𝐎𝐓 𝐎𝐖𝐍𝐄𝐑 𓀬`;
+      msg += `\n 	 					`;
+      msg += `\n~𝙉𝘼𝙈𝙀:♡︎ 𝐃𝐢𝐝𝐚𝐫 ♡︎`;
+      msg += `\n~𝙁𝘽:https://www.facebook.com/didar.xx2`;
+
+      await message.reply({
+        body: msg,
+      });
+    } else if (args[0] === "-c") {
+      if (!args[1]) {
+        await message.reply("Please specify a category name.");
+        return;
+      }
+
+      const categoryName = args[1].toLowerCase();
+      const filteredCommands = Array.from(commands.values()).filter(
+        (cmd) => cmd.config.category?.toLowerCase() === categoryName
+      );
+
+      if (filteredCommands.length === 0) {
+        await message.reply(`No commands found in the category "${categoryName}".`);
+        return;
+      }
+
+      let msg = `╔══════════════╗\n༒︎ ${categoryName.toUpperCase()} COMMANDS ༒︎\n╚══════════════╝\n`;
+
+      filteredCommands.forEach((cmd) => {
+        msg += `\n☠︎︎ ${cmd.config.name} `;
+      });
+
+      await message.reply(msg);
+    } else {
+      const commandName = args[0].toLowerCase();
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+
+      if (!command) {
+        await message.reply(`Command "${commandName}" not found.`);
       } else {
-        page = parseInt(input);
-        if (page < 1 || page > totalPages) page = 1;
+        const configCommand = command.config;
+        const roleText = roleTextToString(configCommand.role);
+        const author = configCommand.author || "Unknown";
+
+        const longDescription = configCommand.longDescription
+          ? configCommand.longDescription.en || "No description"
+          : "No description";
+
+        const guideBody = configCommand.guide?.en || "No guide available.";
+        const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
+
+        const response = `╭── 𝑵𝑨𝑴𝑬 ────⭓\n` +
+          `│ ${configCommand.name}\n` +
+          `├── 𝑰𝑵𝑭𝑶\n` +
+          `│ 𝐷𝑒𝑠𝑐𝑟𝑖𝑝𝑡𝑖𝑜𝑛: ${longDescription}\n` +
+          `│ 𝑂𝑡ℎ𝑒𝑟 𝑁𝑎𝑚𝑒: ${configCommand.aliases ? configCommand.aliases.join(", ") : "Do not have"}\n` +
+          `│ 𝑉𝑒𝑟𝑠𝑖𝑜𝑛: ${configCommand.version || "1.0"}\n` +
+          `│ 𝑅𝑜𝑙𝑒: ${roleText}\n` +
+          `│ 𝑇𝑖𝑚𝑒 𝑃𝑒𝑟 𝐶𝑜𝑚𝑚𝑎𝑛𝑑: ${configCommand.countDown || 1}s\n` +
+          `│ 𝐴𝑢𝑡ℎ𝑜𝑟: ${author}\n` +
+          `├── 𝑼𝑺𝑨𝑮𝑬\n` +
+          `│ ${usage}\n` +
+          `├── 𝑵𝑶𝑻𝑬𝑺\n` +
+          `│ 𝑇ℎ𝑒 𝑐𝑜𝑛𝑡𝑒𝑛𝑡 𝑖𝑛𝑠𝑖𝑑𝑒 ♡︎ 𝐃𝐢𝐝𝐚𝐫 ♡︎ 𝑐𝑎𝑛 𝑏𝑒 𝑐ℎ𝑎𝑛𝑔𝑒𝑑\n` +
+          `│ ♕︎ 𝐎𝐖𝐍𝐄𝐑 ♕︎:☠︎︎ 𝐃𝐢𝐝𝐚𝐫 ☠︎︎\n` +
+          `╰━━━━━━━❖`;
+
+        await message.reply(response);
       }
     }
-
-    if (cmdName) {
-      const cmd = allCommands.find(item =>
-        item.config.name.toLowerCase() === cmdName ||
-        (item.config.aliases && item.config.aliases.map(a => a.toLowerCase()).includes(cmdName))
-      );
-
-      if (!cmd) {
-        return api.sendMessage(`✖️ 𝐜𝐨𝐦𝐦𝐚𝐧𝐝 𝐍𝐨𝐭 𝐟𝐨𝐮𝐧𝐝 𝐢𝐧 𝐭𝐡𝐢𝐬 𝐧𝐚𝐦𝐞 '${cmdName}'`, event.threadID, event.messageID);
-      }
-
-      const { name, aliases, author, shortDescription, longDescription, category, guide } = cmd.config;
-      const usage = typeof guide === "string" ? guide.replace(/{pn}/g, prefix + name) : "No usage guide provided.";
-
-      return api.sendMessage(
-        `╭─〔 ✨ 𝐂𝐨𝐦𝐦𝐚𝐧𝐝 𝐈𝐧𝐟𝐨 ✨ 〕─╮\n` +
-        `│\n` +
-        `│ ⟡ Name: ${name}\n` +
-        `│ ⟡ Aliases: ${aliases?.join(", ") || "None"}\n` +
-        `│ ⟡ Category: ${category}\n` +
-        `│ ⟡ Author: ${author}\n` +
-        `│ ⟡ Description: ${shortDescription}\n` +
-        `│ ⟡ Detail: ${longDescription}\n` +
-        `│\n` +
-        `│ ⟡ Usage:\n│ ${usage}\n` +
-        `╰──────────────────────╯`,
-        event.threadID,
-        event.messageID
-      );
-    }
-
-    const sliced = allCommands.slice((page - 1) * perPage, page * perPage);
-    const msg = sliced.map((cmd, index) => {
-      return `╭─⟪ ${cmd.config.name} ⟫\n│ ✦ ${cmd.config.shortDescription}\n╰───────────────`;
-    }).join("\n");
-
-    api.sendMessage(
-      `╭── 🎀 𝐁𝐨𝐭 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬 🎀 ──╮\n` +
-      `│ Total: ${allCommands.length} cmds\n` +
-      `│ Uptime: ${uptimeString}\n` +
-      `│ Page: ${page}/${totalPages}\n` +
-      `╰────────────────────╯\n\n` +
-      `${msg}\n\n` +
-      `➤ Type 'help <command name>' to see command info.`,
-      event.threadID,
-      event.messageID
-    );
   },
-
-  onChat: async function ({ api, event, args }) {
-    const input = event.body.trim().toLowerCase();  // Get the chat input
-    if (input.startsWith("help")) {  // Check if the user typed 'help' (no prefix)
-      const newArgs = input.split(" ").slice(1);  // Remove 'help' from the input
-      this.onStart({ api, event, args: newArgs });
-    }
-  }
 };
+
+function roleTextToString(roleText) {
+  switch (roleText) {
+    case 0:
+      return "0 (All users)";
+    case 1:
+      return "1 (Group administrators)";
+    case 2:
+      return "2 (Admin bot)";
+    default:
+      return "Unknown role";
+  }
+}

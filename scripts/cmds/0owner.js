@@ -16,15 +16,15 @@ config: {
   onStart: async function ({ api, event }) {
   try {
     const ownerInfo = {
-      name: 'Eren',
+      name: '𝐃𝐢𝐝𝐚𝐫',
       gender: '𝐌𝐚𝐥𝐞',
-      age: '16±',
+      age: '19±',
       height: '5.11',
-      choise: 'Russian 😞',
-      nick: '𝐉𝐚𝐦𝐚𝐢  '
+      choise: 'Comilla',
+      nick: ' 🕸️ mal 🕷️ '
     };
 
-    const bold = 'https://files.catbox.moe/dpgl9a.jpg'; // Replace with your Google Drive videoid link https://drive.google.com/uc?export=download&id=here put your video id
+    const bold = 'https://i.imgur.com/cjSOemN.jpeg'; // Replace with your Google Drive videoid link https://drive.google.com/uc?export=download&id=here put your video id
 
     const tmpFolderPath = path.join(__dirname, 'tmp');
 

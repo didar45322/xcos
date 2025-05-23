@@ -15,14 +15,14 @@ onChat: async function({ event, message, getLang }) {
 if (event.body && event.body.toLowerCase() === "prefix") {
 return message.reply({
 body: `
-‣ 𝐆𝐥𝐨𝐛𝐚𝐥 𝐩𝐫𝐞𝐟𝐢𝐱:/ 
-‣𝐘𝐨𝐮𝐫 𝐠𝐫𝐨𝐮𝐩 𝐩𝐫𝐞𝐟𝐢𝐱:/ 
+‣ 𝐆𝐥𝐨𝐛𝐚𝐥 𝐩𝐫𝐞𝐟𝐢𝐱:!
+‣𝐘𝐨𝐮𝐫 𝐠𝐫𝐨𝐮𝐩 𝐩𝐫𝐞𝐟𝐢𝐱:!
 
 ‣ 𝐀𝐝𝐦𝐢𝐧 
 ‣ eren
 
 ‣ 𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤 ⓕ
-‣ https:facebook.com/international.vikhari420
+‣ https://www.facebook.com/didar.xx2
 \n\n\n  `,
 attachment: await global.utils.getStreamFromURL("https://files.catbox.moe/dpgl9a.jpg")
 });
